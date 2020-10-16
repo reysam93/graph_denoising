@@ -1,1 +1,1 @@
-# robust_gf_id
+# Robust Graph Filter Identification
