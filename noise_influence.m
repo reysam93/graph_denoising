@@ -64,15 +64,15 @@ for i=1:n_graphs
         disp(['      P_N ' num2str(p_n) ' (SNR: '...
             num2str(M*p_y/norm(Noise,'fro')^2) '): ' ])
         
-%         % Unperturbed model
-%         H_unp = estH_unpertS(X,Yn,A_pert);
-%         if isempty(H_unp)
-%             err_H(k,1,i) = 1;
-%             err_S(k,1,i) = 1;
-%         else
-%             err_H(k,1,i) = norm(H-H_unp,'fro')^2/norm_H2;
-%             err_S(k,1,i) = norm(vec(A-A_pert),1)/norm_A2;
-%         end
+         % Unperturbed model
+         H_unp = estH_unpertS(X,Yn,A_pert);
+         if isempty(H_unp)
+             err_H(k,1,i) = 1;
+             err_S(k,1,i) = 1;
+         else
+             err_H(k,1,i) = norm(H-H_unp,'fro')^2/norm_H2;
+             err_S(k,1,i) = norm(vec(A-A_pert),1)/norm_A2;
+         end
         
         % Robust non st
         [H_rfi,A_rfi] = estH_non_st(X,Yn,A_pert,lambda,gamma,max_iters,inc_gamma);
@@ -84,15 +84,15 @@ for i=1:n_graphs
             err_S(k,2,i) = norm(vec(A-A_rfi),1)/norm_A2;
         end
         
-%         % Denoising model - perfect Cy
-%         [H_den,A_den] = estH_denS(X,Yn,A_pert,Cy,0);
-%         if isempty(H_den)
-%             err_H(k,3,i) = 1;
-%             err_S(k,3,i) = 1;
-%         else
-%             err_H(k,3,i) = norm(H-H_den,'fro')^2/norm_H2;
-%             err_S(k,3,i) = norm(vec(A-A_den),1)/norm_A2;
-%         end
+         % Denoising model - perfect Cy
+         [H_den,A_den] = estH_denS(X,Yn,A_pert,Cy,0);
+         if isempty(H_den)
+             err_H(k,3,i) = 1;
+             err_S(k,3,i) = 1;
+         else
+             err_H(k,3,i) = norm(H-H_den,'fro')^2/norm_H2;
+             err_S(k,3,i) = norm(vec(A-A_den),1)/norm_A2;
+         end
         
         % Denoising model - sampled Cy
         [H_den,A_den] = estH_denS(X,Yn,A_pert,Cy_samp,delta);
