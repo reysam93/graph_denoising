@@ -23,7 +23,7 @@ p_A = 0.1;
 % Optimization
 eps = 0.1;                % Edge perturbation probability
 gamma = 1;                % Commutation term weight (see (4))
-lambda_t = zeros(T) + 1;  % Observed graph terms weights
+lambda_t = ones(T,1);  % Observed graph terms weights
 n_signals = 1;            % Nb of experiments to be run for each settings
 delta = 1;                % Stationnarity tolerance
  
@@ -220,23 +220,3 @@ ylabel('(a) Graph median error')
 set(gca,'FontSize',20);
 legend(models,'FontSize',12,'location','southwest')
 set(gcf, 'PaperPositionMode', 'auto')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
