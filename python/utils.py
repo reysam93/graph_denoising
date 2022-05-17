@@ -21,7 +21,8 @@ def gen_data(N, M, p_er, p_n, eps, K = 4):
         H += h[k] * Spow
         Spow = Spow @ W
 
-    #Perturbated adjacency
+    # TODO: we should consider different types of perturbations. This one may result in denser perturbed graphs
+    # Perturbated adjacency
     adj_pert_idx = np.triu(np.random.rand(N,N) < eps, 1)
     adj_pert_idx = adj_pert_idx + adj_pert_idx.T
     Wn = np.logical_xor(W, adj_pert_idx).astype(float)
@@ -36,10 +37,10 @@ def gen_data(N, M, p_er, p_n, eps, K = 4):
     Y += np.random.randn(N,M) * np.sqrt(norm_y*p_n / N)
 
     # Sample covariance
-    Cy_samp = Y @ Y.T
+    Cy_samp = Y @ Y.T / M
     Cy_samp = Cy_samp / np.sqrt((Cy_samp**2).sum())
 
-    return X, Y, Cy, Cy_samp, H, W, Wn
+    return X, Y, Cy, Cy_samp, H, W, Wn, h
 
 
 def gen_data_sev_H(N, M, T, p_er, p_n, eps, K = 4):
