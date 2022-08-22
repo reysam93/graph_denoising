@@ -15,9 +15,9 @@ def filter_id_sevH(Y, X, S, gamma, delta, Cy, verb=VERB):
     T, N, M = X.shape
     Hs = [cp.Variable((N, N), symmetric=True) for _ in range(T)]
 
-    ls_loss = cp.sum([cp.sum_squares(Y[i,:,:] - Hs[i]@X[i,:,:]) for i in range(T)])
+    ls_loss = cp.sum_squares(Y - cp.sum([Hs[i]@X[i,:,:] for i in range(T)]))
     commut_loss = cp.sum([cp.sum_squares(Hs[i]@S - S@Hs[i]) for i in range(T)])
-    commut_cy_loss = cp.sum([cp.sum_squares(Hs[i]@Cy[i,:,:] - Cy[i,:,:]@Hs[i]) for i in range(T)])
+    commut_cy_loss = cp.sum([cp.sum_squares(Hs[i]@Cy - Cy@Hs[i]) for i in range(T)])
 
     obj = ls_loss + gamma*commut_loss + delta*commut_cy_loss
 
@@ -54,7 +54,7 @@ def graph_id(Sn, Hs, Cy, lambd, gamma, delta, verb=VERB):
     commut_loss = cp.sum([cp.sum_squares(Hs[i,:,:]@S - S@Hs[i,:,:]) for i in range(T)])
     #commut_loss = cp.sum_squares(Havg@S - S@Havg)
     #commut_cy_loss = cp.sum_squares(S@Cy - Cy@S)
-    commut_cy_loss = cp.sum([cp.sum_squares(Cy[i,:,:]@S - S@Cy[i,:,:]) for i in range(T)])
+    commut_cy_loss = cp.sum_squares(Cy@S - S@Cy)
 
     obj = lambd*s_loss + gamma*commut_loss + delta*commut_cy_loss
 
@@ -99,7 +99,7 @@ def graph_id_rew(Sn, Hs, Cy, W1, W2, lambd, gamma, delta, beta, verb=VERB):
     commut_loss = cp.sum([cp.sum_squares(Hs[i,:,:]@S - S@Hs[i,:,:]) for i in range(T)])
     #commut_loss = cp.sum_squares(Havg@S - S@Havg)
     #commut_cy_loss = cp.sum_squares(S@Cy - Cy@S)
-    commut_cy_loss = cp.sum([cp.sum_squares(Cy[i,:,:]@S - S@Cy[i,:,:]) for i in range(T)])
+    commut_cy_loss = cp.sum([cp.sum_squares(Cy@S - S@Cy) for i in range(T)])
 
     obj = lambd*sn_loss + beta*s_loss + gamma*commut_loss + delta*commut_cy_loss
 
@@ -159,9 +159,8 @@ def estHs_iter(X, Y, Sn, Cy, params, max_iters=20, th=1e-3, patience=4, Hs_true=
     for i in range(max_iters):
         # Filter identification problem
 
-        for t in range(T):
-            H_id = filter_id(Y[t,:,:], X[t,:,:], S, gamma, delta, Cy[t,:,:])
-            Hs[t,:,:] = Hs_prev[t,:,:] if H_id is None else H_id
+        Hs = filter_id_sevH(Y, X, S, gamma, delta, Cy)
+        Hs = Hs_prev if Hs is None else Hs
 
         # Havg = np.mean(Hs, 0)
 
@@ -176,7 +175,7 @@ def estHs_iter(X, Y, Sn, Cy, params, max_iters=20, th=1e-3, patience=4, Hs_true=
             err.append(err_Hs + err_S)
             #print(f"Sev: {i=}, {err_Hs=}, {err_S=}, {err[i]=}")
         else:
-            ls_loss = ((Y - Hs@X)**2).sum()
+            ls_loss = ((Y - np.sum(Hs@X, 0))**2).sum()
             s_loss = np.abs(S-Sn).sum()
             commut_loss = ((S@Hs - Hs@S)**2).sum()
             commut_cy_loss = ((Cy@Hs - Hs@Cy)**2).sum()
@@ -234,9 +233,8 @@ def estHs_iter_rew(X, Y, Sn, Cy, params, max_iters=20, th=1e-3, patience=4, Hs_t
     for i in range(max_iters):
         # Filter identification problem
 
-        for t in range(T):
-            H_id = filter_id(Y[t,:,:], X[t,:,:], S, gamma, delta, Cy[t,:,:])
-            Hs[t,:,:] = Hs_prev[t,:,:] if H_id is None else H_id
+        Hs = filter_id_sevH(Y, X, S, gamma, delta, Cy)
+        Hs = Hs_prev if Hs is None else Hs
 
         # Graph identification
         S = graph_id_rew(Sn, Hs, Cy, W1, W2, lambd, gamma, delta, beta)
@@ -252,7 +250,7 @@ def estHs_iter_rew(X, Y, Sn, Cy, params, max_iters=20, th=1e-3, patience=4, Hs_t
             err.append(err_Hs + err_S)
             #print(i, err_H, err_S, err[i])
         else:
-            ls_loss = ((Y - Hs@X)**2).sum()
+            ls_loss = ((Y - np.sum(Hs@X, 0))**2).sum()
             s_loss = np.abs(S-Sn).sum()
             commut_loss = ((S@Hs - Hs@S)**2).sum()
             commut_cy_loss = ((Cy@Hs - Hs@Cy)**2).sum()
