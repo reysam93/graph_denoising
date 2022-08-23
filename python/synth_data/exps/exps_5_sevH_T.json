@@ -1,0 +1,44 @@
+[
+    {
+        "func": "estH_iter",
+        "cy": "non-st",
+        "legend": "RFI-iter",
+        "fmt": "P",
+        "joint": false
+    },
+    {
+        "func": "estHs_iter",
+        "cy": "non-st",
+        "legend": "RFI-iter-J",
+        "fmt": "P",
+        "joint": true
+    },
+    {
+        "func": "estH_iter_rew",
+        "cy": "non-st",
+        "legend": "RFI-iter-rew",
+        "fmt": "P",
+        "joint": false
+    },
+    {
+        "func": "estHs_iter_rew",
+        "cy": "non-st",
+        "legend": "RFI-iter-rew-J",
+        "fmt": "P",
+        "joint": true
+    },
+    {
+        "func": "estH_iter",
+        "cy": "samp",
+        "legend": "RFI-iter-Cyest",
+        "fmt": "P",
+        "joint": false
+    },
+    {
+        "func": "estHs_iter",
+        "cy": "samp",
+        "legend": "RFI-iter-Cyest-J",
+        "fmt": "P",
+        "joint": true
+    }
+]
