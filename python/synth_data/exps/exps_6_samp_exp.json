@@ -1,0 +1,37 @@
+[
+    {
+        "func": "estH_unpertS",
+        "cy": "real",
+        "legend": "FI",
+        "fmt": "d",
+        "joint": false
+    },
+    {
+        "func": "estH_tls_sem",
+        "cy": "non-st",
+        "legend": "TLS-SEM",
+        "fmt": "v",
+        "joint": false
+    },
+    {
+        "func": "estH_iter",
+        "cy": "non-st",
+        "legend": "RFI-iter",
+        "fmt": "o",
+        "joint": false
+    },
+    {
+        "func": "estHs_iter",
+        "cy": "non-st",
+        "legend": "RFI-iter-J",
+        "fmt": "s",
+        "joint": true
+    },
+    {
+        "func": "estH_iter_rew",
+        "cy": "samp",
+        "legend": "RFI-iter-rew-Cyest",
+        "fmt": "P",
+        "joint": false
+    }
+]
