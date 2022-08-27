@@ -513,29 +513,50 @@ def efficient_graph_id(Sn, H, lambd, beta, gamma, S_init=None, max_iters=50, eps
     return S, s_iters
 
 
-def efficient_rfi(X, Y, Sn, regs, iters_out=20, iters_filter=10, iters_graph=10):
+def efficient_rfi(X, Y, Sn, regs, iters_out=20, iters_filter=10, iters_graph=10, eps=1e-3):
     # Initialization
     lamb, gamma, beta, inc_gamma, mu = regs
     N = X.shape[0]
 
     # Precomputing quantities
-    y = Y.flatten()
-    y_kron = np.kron(X, np.eye(N))@y
+    ## Use sparse functions?
+    y_kron = np.kron(X, np.eye(N))@Y.flatten(order='F')
     XX = X@X.T
     
     # Init S and H to 0
     Ss_hat = np.zeros((iters_out+1, N, N))
-    Ss_hat[0] = Sn
     Hs_hat = np.zeros((iters_out+1, N, N))
     for i in range(1, iters_out+1):
-        Hs_hat[i], _ = efficient_filter_id(XX, Ss_hat[i-1], y_kron, gamma, mu,
-                                           H_init=Hs_hat[i-1], max_iters=iters_filter)
-        Ss_hat[i], _ = efficient_graph_id(Sn, Hs_hat[i], lamb, beta, gamma, S_init=Ss_hat[i-1],
+
+        # Init with prev iters
+        # Hs_hat[i], _ = efficient_filter_id(XX, Ss_hat[i-1], y_kron, gamma, mu,
+        #                                    H_init=Hs_hat[i-1], max_iters=iters_filter)
+        # Ss_hat[i], _ = efficient_graph_id(Sn, Hs_hat[i], lamb, beta, gamma, S_init=Ss_hat[i-1],
+        #                                   max_iters=iters_graph)
+        # Ss_hat[i,:,:] = Ss_hat[i,:,:]/np.linalg.norm(Ss_hat[i,:,:], 'fro')
+
+        # Init as 0
+        Hs_hat[i,:,:], _ = efficient_filter_id(XX, Ss_hat[i-1], y_kron, gamma, mu,
+                                           max_iters=iters_filter)
+        Ss_hat[i,:,:], _ = efficient_graph_id(Sn, Hs_hat[i], lamb, beta, gamma,
                                           max_iters=iters_graph)
         
         gamma *= inc_gamma
 
+        if i == 0:
+            continue
+
         # Stopping condition
+        norm_H_prev = np.linalg.norm(Hs_hat[i-1], 'fro') if not np.all(Hs_hat[i-1] == 0) else 1
+        norm_S_prev = np.linalg.norm(Ss_hat[i-1], 'fro') if not np.all(Ss_hat[i-1] == 0) else 1
+        diff_H = (np.linalg.norm(Hs_hat[i] - Hs_hat[i-1], 'fro')/norm_H_prev)**2
+        diff_S = (np.linalg.norm(Ss_hat[i] - Ss_hat[i-1], 'fro')/norm_S_prev)**2
+
+        # print(f'Iter: {i}  -  Conv H: {diff_H:.6f}  -  Conv S: {diff_S:.6f}')
+
+        if diff_H < eps and diff_S < eps:
+            print(f'Convergence reached at iteration {i}')
+            return Hs_hat[i], Ss_hat[i], Hs_hat, Ss_hat
 
     return Hs_hat[i], Ss_hat[i], Hs_hat, Ss_hat
 
