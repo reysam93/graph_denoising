@@ -556,7 +556,7 @@ def efficient_rfi(X, Y, Sn, regs, iters_out=20, iters_filter=10, iters_graph=10,
         # print(f'Iter: {i}  -  Conv H: {diff_H:.6f}  -  Conv S: {diff_S:.6f}')
 
         if diff_H < eps and diff_S < eps:
-            # print(f'Convergence reached at iteration {i}')
+            print(f'Convergence reached at iteration {i}')
             return Hs_hat[i], Ss_hat[i], Hs_hat, Ss_hat
 
     return Hs_hat[i], Ss_hat[i], Hs_hat, Ss_hat
