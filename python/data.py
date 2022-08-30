@@ -64,7 +64,7 @@ def generate_graph(N, g_params, seed=None):
         raise NotImplementedError("Only: ER graph available")
     return to_numpy_array(G)
 
-def generate_graph_filter(S, K, neg_coefs=True, exp_coefs=False, sort_h=False, norm_S=False, norm_H=False, return_h=False):
+def generate_graph_filter(S, K, neg_coefs=True, exp_coefs=False, coef=1, sort_h=False, norm_S=False, norm_H=False, return_h=False):
     """
     Generate a graph filter from the graph shift operator and random coefficients
     """
@@ -76,7 +76,7 @@ def generate_graph_filter(S, K, neg_coefs=True, exp_coefs=False, sort_h=False, n
     if sort_h:
         h = sorted(h, key=lambda x: np.abs(x))[::-1]
     if exp_coefs:
-        h = [h[i]*np.exp(-i) for i in range(K)]
+        h = [h[i]*np.exp(-i*coef) for i in range(K)]
     h = h / np.linalg.norm(h)
     #print(h)
     
@@ -170,13 +170,13 @@ def pert_S(S, type="rewire", eps=0.1, creat=None, dest=None, sel_ratio=1, sel_no
         raise NotImplementedError("Choose either prob, rewire or creat-dest perturbation types")
     return Sn
 
-def gen_data(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, sel_ratio=1, sel_node_idx=0, seed=None):
+def gen_data(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, coef=1, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, sel_ratio=1, sel_node_idx=0, seed=None):
     #Generating graph and graph filter
     S = generate_graph(N, g_params, seed=seed)
     N = S.shape[0] # When using Zachary's karate club, N is ignored, thus setting it here again
 
     # Generate graph filter
-    H, h = generate_graph_filter(S, K, neg_coefs, exp_coefs, sort_h, norm_S, norm_H, True)
+    H, h = generate_graph_filter(S, K, neg_coefs, exp_coefs, coef, sort_h, norm_S, norm_H, True)
 
     # Perturbate adjacency
     Sn = pert_S(S, pert_type, eps, creat, dest, sel_ratio, sel_node_idx)
