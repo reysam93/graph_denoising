@@ -151,7 +151,7 @@ def estH_iter(X, Y, Sn, Cy, params, max_iters=20, th=1e-3, patience=4, H_true=No
         S = graph_id(Sn, H, Cy, lambd, gamma, delta)
         S = S_prev if S is None else S
 
-        # Check convergence        
+        # Check convergence   
         if H_true is not None and S_true is not None:
             # Early stopping is performed with variables error
             err_H = ((H - H_true)**2).sum() / norm_H
