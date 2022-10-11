@@ -27,7 +27,7 @@ def results_to_csv(results, x_ax, col_names, metric, csv_path):
     
     df.to_csv(csv_path, sep=';', index=False, index_label=False)
 
-def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized"):
+def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized", sc_free=False):
     err_H = np.zeros((len(exps)))
     err_S = np.zeros((len(exps)))
     err_h_bar = np.zeros((len(exps)))
@@ -35,7 +35,7 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized")
 
     norm_h = (H**2).sum()
     norm_A = (S**2).sum()
-    h_true, h_bar_true = data.obtain_filter_coefs(S, H, K, True)
+    _, h_bar_true = data.obtain_filter_coefs(S, H, K, True)
     norm_h_bar = (h_bar_true**2).sum()
     #assert np.allclose(h, h_true) # Care with normalization
     import warnings
@@ -51,7 +51,7 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized")
             Cy_exp = Cy_samp
         elif exp["cy"] == "non-st":
             #assert 0. in params, "Delta is not 0" # Warning - this does not check that delta is 0, is just making sure SOME parameter is 0
-            Cy_exp = Cy
+            Cy_exp = np.eye(S.shape[0])
         else:
             raise NotImplementedError("Choose either real or samp covariance")
 
@@ -62,37 +62,36 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized")
         else:
             kwargs = {}
 
-        iter, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
+        _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
+        h_est, h_bar_est = data.obtain_filter_coefs(S_est, H_est, K, return_h_bar=True)
 
+        err_H_coefs[i] = np.linalg.norm(h - h_est)**2/np.linalg.norm(h)**2
+        err_h_bar[i] = ((h_bar_est - h_bar_true)**2).sum()/norm_h_bar
         err_H[i] = ((H - H_est)**2).sum()/norm_h
-        err_S[i] = ((S - S_est)**2).sum()/norm_A
-        #err_S[i] = (((S / norm_A) - S_est/(S_est**2).sum())**2).sum()
 
-        if S_for_coefs == "binarized":
-            # Binarization
-            thres = (np.max(S_est) + np.min(S_est))/2
-            S_est_coefs = np.where(S_est > thres, 1., 0.)
-        elif S_for_coefs == "scaled":
-            # Scale so maximum value is 1
-            S_est_coefs = S_est / np.max(np.abs(S_est))
-        elif S_for_coefs == "norm":
-            # Scale so both S and S_est have the same norm
-            S_est_coefs = (S_est / (S_est**2).sum()) * norm_A
-            #assert np.allclose((S_est_coefs**2).sum(), norm_A)
+        if sc_free:
+            norm_S_est = (S_est**2).sum()
+            err_S[i] = (S/np.sqrt(norm_A) - S_est/np.sqrt(norm_S_est)**2).sum()
+        else:
+            err_S[i] = ((S - S_est)**2).sum()/norm_A
 
-        #err_S[i] = ((S - S_est_coefs)**2).sum()/norm_A
+        # Different options to calculate S
+        # if S_for_coefs == "binarized":
+        #     # Binarization
+        #     thres = (np.max(S_est) + np.min(S_est))/2
+        #     S_est_coefs = np.where(S_est > thres, 1., 0.)
+        # elif S_for_coefs == "scaled":
+        #     # Scale so maximum value is 1
+        #     S_est_coefs = S_est / np.max(np.abs(S_est))
+        # elif S_for_coefs == "norm":
+        #     # Scale so both S and S_est have the same norm
+        #     S_est_coefs = (S_est / (S_est**2).sum()) * norm_A
+        #     #assert np.allclose((S_est_coefs**2).sum(), norm_A)
 
-        h_est, h_bar_est = data.obtain_filter_coefs(S_est_coefs, H_est, K, return_h_bar=True)
-        h_est = h_est / (h_est**2).sum()
-        h_bar_est = h_bar_est / (h_bar_est**2).sum()
-        err_h_bar[i] = ((h_bar_est - h_bar_true/norm_h_bar)**2).sum()
-        err_H_coefs[i] = ((h - h_est)**2).mean()
-        #print(f"Function {f} took {iter} iterations on covariance {cy_use}")
-        
     return err_H, err_S, err_H_coefs, err_h_bar
 
 
-def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False, exp_coefs=True, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", sel_ratio=1, sel_node_idx=0, n_procs=cpu_count()):
+def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False, coef=1, exp_coefs=True, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", sel_ratio=1, sel_node_idx=0, sc_free=False, n_procs=cpu_count()):
 
     err_H = np.zeros((n_graphs, len(exps)))
     err_S = np.zeros((n_graphs, len(exps)))
@@ -115,9 +114,9 @@ def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False
 
         funcs = []
         for i in range(n_graphs):
-            X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
-                
-            funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args))
+            X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
+
+            funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free))
         
         results = parallel(funcs)
 
