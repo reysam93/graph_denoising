@@ -9,7 +9,7 @@ BA = 3
 SW = 4
 ZACHARY = 5
 
-MAX_RETRIES = 20
+MAX_RETRIES = 100
 
 def obtain_filter_coefs(S, H, K, return_h_bar=False, use_H_vals=False):
     """
@@ -196,9 +196,9 @@ def gen_data(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, c
 
     return X, Y, Cy, Cy_samp, H, S, Sn, h
 
-def gen_data_SEM(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, seed=None):
+def gen_data_SEM(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, coef=1., sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, seed=None):
     np.random.seed(seed)
-    X, Y_poly, Cy_poly, Cy_samp_poly, H_poly, S, Sn, h = gen_data(N, M, g_params, p_n, eps, K, neg_coefs, exp_coefs, sort_h, norm_S, norm_H, pert_type, creat, dest, seed)
+    X, Y_poly, Cy_poly, Cy_samp_poly, H_poly, S, Sn, h = gen_data(N, M, g_params, p_n, eps, K, neg_coefs, exp_coefs, coef, sort_h, norm_S, norm_H, pert_type, creat, dest, seed)
 
     H_sem = np.linalg.pinv(np.eye(N) - S)
     Y_sem = H_sem @ X
@@ -215,7 +215,7 @@ def gen_data_SEM(N, M, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=Fals
     return X, Y_poly, Y_sem, Cy_poly, Cy_sem, Cy_samp_poly, Cy_samp_sem, H_poly, H_sem, S, Sn, h
 
 
-def gen_data_sev_H(N, M, T, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, seed=None):
+def gen_data_sev_H(N, M, T, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs=False, coef=1, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", creat=None, dest=None, seed=None):
     #Generating graph and graph filter
     S = generate_graph(N, g_params, seed=seed)
     N = S.shape[0] # When using Zachary's karate club, N is ignored, thus setting it here again
@@ -226,7 +226,7 @@ def gen_data_sev_H(N, M, T, g_params, p_n, eps, K = 4, neg_coefs=True, exp_coefs
     hs = np.zeros((T, K))
     for i in range(T):
         # Generate graph filters
-        Hs[i,:,:], hs[i,:] = generate_graph_filter(S, K, neg_coefs, exp_coefs, sort_h, norm_S, norm_H, True)
+        Hs[i,:,:], hs[i,:] = generate_graph_filter(S, K, neg_coefs, exp_coefs, coef, sort_h, norm_S, norm_H, True)
 
     # Perturbate adjacency
     Sn = pert_S(S, pert_type, eps, creat, dest)
