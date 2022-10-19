@@ -26,7 +26,7 @@ The repository is organized as follows:
   * `opt_lls.py`: implements one of the algorithms used for the comparison with our techniques, specifically SCP.
   * `opt_efficient.py`: contains the efficient implementation of our algorithm, with reduced computational complexity and better suited for large graphs.
 
-## Citating
+## Citing
 
 If you use this code or find the paper relevant, please cite the paper as follows:
 ```
