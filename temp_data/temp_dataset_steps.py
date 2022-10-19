@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append('/home/vtenorio/Codigo/graph_denoising/python/')
 import opt
-import robustARMA_opt
+import robustAR_opt
 import sev_filters_opt
 
 import time
@@ -527,7 +527,7 @@ for i, n_steps in enumerate(n_steps_vals):
         # ## Iterative (robust) algorithms
 
         # %%
-        iter, Hs_iter, Ss_iter = robustARMA_opt.estHs_iter(Xs_var_train, Y_var_train, S, C, params_sev)
+        iter, Hs_iter, Ss_iter = robustAR_opt.estHs_iter(Xs_var_train, Y_var_train, S, C, params_sev)
 
         # %%
         Y_hat_var_iter = np.sum(Hs_iter @ Xs_var_test, 0)
@@ -541,7 +541,7 @@ for i, n_steps in enumerate(n_steps_vals):
 
         if do_rew:
             # %%
-            iter, Hs_iter_rew, Ss_iter_rew = robustARMA_opt.estHs_iter_rew(Xs_var_train, Y_var_train, S, C, params_sev_rew)
+            iter, Hs_iter_rew, Ss_iter_rew = robustAR_opt.estHs_iter_rew(Xs_var_train, Y_var_train, S, C, params_sev_rew)
 
             # %%
             Y_hat_var_iter_rew = np.sum(Hs_iter_rew @ Xs_var_test, 0)

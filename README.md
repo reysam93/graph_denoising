@@ -22,7 +22,7 @@ The repository is organized as follows:
 * The optimization scripts contain the code for the different algorithms proposed in the paper, specifically:
   * `opt.py`: contains the code for the base robust filter identification algorithm in the paper, both the basic implementation and the one that substitutes the L-1 norm with a logarithmic penalty.
   * `sev_filters_opt.py`: same algorithms for the problem where we are trying to identify several filters over the same graph. 
-  * `robust_ARMAopt.py`: same algorithms for the AR model. 
+  * `robust_ARopt.py`: same algorithms for the AR model. 
   * `opt_lls.py`: implements one of the algorithms used for the comparison with our techniques, specifically SCP.
   * `opt_efficient.py`: contains the efficient implementation of our algorithm, with reduced computational complexity and better suited for large graphs.
 
