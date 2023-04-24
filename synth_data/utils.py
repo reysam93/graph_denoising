@@ -62,7 +62,8 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
         elif 'llsscp' in exp["func"]:
             kwargs = {"H_true": H, "S_true": S, 'K': K}
         elif 'efficient' in exp["func"]:
-            kwargs = {"iters_out": exp["iters_out"], "iters_filter": exp["iters_in"], "iters_graph": exp["iters_in"], "eps": exp["eps"]}
+            kwargs = {"iters_out": params["iters_out"], "iters_filter": params["iters_in"], "iters_graph": params["iters_in"], "eps": params["eps"]}
+            params = params['regs']
         else:
             kwargs = {}
 
