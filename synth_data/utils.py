@@ -4,6 +4,8 @@ sys.path.append('..')
 import data
 import opt
 
+from opt_efficient import efficient_rfi
+
 import numpy as np
 
 from joblib import Parallel, delayed, cpu_count
@@ -59,10 +61,15 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
             kwargs = {"H_true": H, "S_true": S}
         elif 'llsscp' in exp["func"]:
             kwargs = {"H_true": H, "S_true": S, 'K': K}
+        elif 'efficient' in exp["func"]:
+            kwargs = {"iters_out": exp["iters_out"], "iters_filter": exp["iters_in"], "iters_graph": exp["iters_in"], "eps": exp["eps"]}
         else:
             kwargs = {}
 
-        _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
+        if 'efficient' in exp['func']:
+            H_est, S_est, _, _ = efficient_rfi(X, Y, Sn, params, **kwargs)
+        else:
+            _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
         h_est, h_bar_est = data.obtain_filter_coefs(S_est, H_est, K, return_h_bar=True)
 
         err_H_coefs[i] = np.linalg.norm(h - h_est)**2/np.linalg.norm(h)**2
