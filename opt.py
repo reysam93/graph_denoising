@@ -352,6 +352,15 @@ def estH_unpertS(X, Y, S, Cy=None, params=None, H_true=None, S_true=None):
     H = eigvecs @ np.diag(h_freq) @ eigvecs.T
     return -1, H, S
 
+def estH_ls(X, Y, S, Cy=None, params=None, H_true=None, S_true=None):
+    """
+    Estimation of the H matrix via least squares
+    """
+
+    H = Y @ np.linalg.pinv(X)
+
+    return -1, H, S
+
 
 def fi_eigval(X, Y, S, K):
     """
