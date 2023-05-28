@@ -3,6 +3,7 @@ sys.path.append('..')
 
 import data
 import opt
+from opt_aux import RobustPolyOpt
 
 from opt_efficient import efficient_rfi
 
@@ -69,6 +70,11 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
 
         if 'efficient' in exp['func']:
             H_est, S_est, _, _ = efficient_rfi(X, Y, Sn, params, **kwargs)
+        elif exp['func'] == 'esth_SGD':
+            model = RobustPolyOpt(Sn, K, exp['iters_out'], exp['iters_S'], exp['lr'],
+                                  exp['eval_freq'])
+            h_est, S_est = model.test_model(Sn, X, Y, params, S, h, exp['verbose'],
+                                            exp['debug_S'])
         else:
             _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
         h_est, h_bar_est = data.obtain_filter_coefs(S_est, H_est, K, return_h_bar=True)
@@ -121,15 +127,18 @@ def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False
             dest = None
 
         funcs = []
-        for i in range(n_graphs):
-            X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
+        # for i in range(n_graphs):
+        #     X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
 
-            funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free))
+        #     funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free))
         
-        results = parallel(funcs)
+        # results = parallel(funcs)
 
-        for i in range(n_graphs):
-            err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = results[i]
+        # for i in range(n_graphs):
+        #     err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = results[i]
+
+        X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
+        err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free)
 
     return {
         'med_H': np.median(err_H, 0),

@@ -117,15 +117,6 @@ def efficient_rfi(X, Y, Sn, regs, iters_out=20, iters_filter=10, iters_graph=10,
     Ss_hat = np.zeros((iters_out+1, N, N))
     Hs_hat = np.zeros((iters_out+1, N, N))
     for i in range(1, iters_out+1):
-
-        # Init with prev iters
-        # Hs_hat[i], _ = efficient_filter_id(XX, Ss_hat[i-1], y_kron, gamma, mu,
-        #                                    H_init=Hs_hat[i-1], max_iters=iters_filter)
-        # Ss_hat[i], _ = efficient_graph_id(Sn, Hs_hat[i], lamb, beta, gamma, S_init=Ss_hat[i-1],
-        #                                   max_iters=iters_graph)
-        # Ss_hat[i,:,:] = Ss_hat[i,:,:]/np.linalg.norm(Ss_hat[i,:,:], 'fro')
-
-
         # Init as 0
         Hs_hat[i,:,:], _ = efficient_filter_id(XX, Ss_hat[i-1], y_kron, gamma, mu,
                                            max_iters=iters_filter)
