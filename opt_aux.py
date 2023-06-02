@@ -17,13 +17,13 @@ class RobustPolyOpt:
         self.loss = nn.MSELoss(reduction='sum')
         
 
-    def calc_loss_S(self, y_hat, y_train, S, beta=1):
-        return self.loss(y_hat, y_train) + beta*torch.sum(S)
+    def calc_loss_S(self, y_hat, y_train, beta=1):
+        return self.loss(y_hat, y_train) + beta*torch.sum(self.model.S)
 
 
-    def gradient_step_S(self, S=None, beta=None, X=None, Y=None):
+    def gradient_step_S(self, X=None, Y=None, beta=None):
         Y_hat = self.model(X).squeeze()
-        loss = self.calc_loss_S(Y_hat, Y, S, beta)
+        loss = self.calc_loss_S(Y_hat, Y, beta)
 
         self.opt_S.zero_grad()
         loss.backward()
@@ -63,7 +63,8 @@ class RobustPolyOpt:
             # S = self.model.S.data.clone()
 
             # S = self.gradient_step_S(S, beta, X, Y)
-            S = self.gradient_step_S(self.model.S, beta, X, Y)
+            S = self.gradient_step_S(X, Y, beta)
+
 
             # Proximal for the distance to S_bar
             idxs_greater = torch.where(S - Sn > lambd)
@@ -99,6 +100,10 @@ class RobustPolyOpt:
         X = torch.Tensor(X)
         Y = torch.Tensor(Y)
 
+        if verbose:
+            norm_S = torch.linalg.norm(S_true)
+            err_Sn = torch.linalg.norm(S_true - Sn) / norm_S
+
         lambd, beta = params
         err_h = np.zeros((self.n_iters_out))
         # err_H = np.zeros((self.n_iters_out))
@@ -110,7 +115,7 @@ class RobustPolyOpt:
             err_S[i,:], change_S[i,:] = self.stepS(Sn, X, Y, lambd, beta, S_true, debug=debug_S)
 
             if verbose:
-                print(f"Iteration {i+1} DONE - Err h: {err_h[i,-1]} - Err S: {err_S[i,-1]}")
+                print(f"Iteration {i+1} DONE - Err h: {err_h[i]:.3f} - Err S: {err_S[i,-1]:.3f} - Err Sn: {err_Sn:.3f}")
 
         return self.model.h.data.numpy(), self.model.S.data.numpy(), err_h, err_S, change_S
 
@@ -125,28 +130,15 @@ class PolynomialGFModel(nn.Module):
 
     def update_S(self, newS):
         self.S.data = newS
-        for conv in self.convs:
-            conv.S.data = newS
 
     def forward(self, x):
         Nin, M = x.shape
         assert Nin == self.N
 
         x_out = self.h[0] * x
-        # Sx = x
+        Sx = x
         for k in range(1, self.K):
-            # Sx = S @ Sx
-            # x_out += self.h[k] * Sx
-            x_out += self.h[k] * torch.matrix_power(self.S, k) @ x
+            Sx = self.S @ Sx
+            x_out += self.h[k] * Sx
 
         return x_out
-
-        # Sx = torch.zeros((self.K, Nin, M), device=x.device)
-        # Sx[0,...] = x
-
-        # for k in range(1, self.K):
-        #     Sx[k,...] = self.S @ Sx[k-1,...].clone()
-
-        # Hx = torch.sum(self.h[:,None,None] * Sx, 0)
-
-        # return Hx

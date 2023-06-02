@@ -7,6 +7,116 @@ from opt_lls import estH_llsscp
 
 VERB = False
 
+
+def filter_coefs_id(X, Y, Spows):
+    y = Y.flatten(order='F')
+    R = Spows.shape[0] # NOTE: S_pows expected to be R-1xNxN tensor
+
+    # Create matrix Theta
+    Theta_T = np.zeros((R+1, X.size))
+    Theta_T[0,:] = X.flatten(order='F')
+    for r in range(R):
+        Theta_T[r+1,:] = (Spows[r] @ X).flatten(order='F')
+    
+    Theta = Theta_T.T
+    return np.pinv(Theta) @ y
+
+
+def graph_powers_id(X, Y, Sn, h, Spows, lambd, gamma, beta, inc_gamma, verb=False):
+    N = Sn.shape[0]
+    R = Spows.shape[0] + 1
+
+    # NOTE: recall h has R entries but Spows R-1 matrices (S^0 is ignored)
+    for r in range(1, R):
+        # Compute auxiliary matrix Zr
+        Zr = Y - h[0]*X
+        for i in range(1,R):
+            if i == r:
+                continue
+            Zr -= h[i] * Spows[i-1,:,:] @ X
+
+        Sr = cp.Variable((N,N), symmetric=True)
+        ls_loss = cp.sum_squares(Zr - h[r] * Sr @ X)
+        comm_los1 = cp.sum(Sr - Spows[r-2,:,:] @ Spows[0,:,:]) if r > 1 else 0
+        comm_los2 = cp.sum(Spows[r,:,:] - Sr @ Spows[0,:,:]) if r < (R - 1) else 0 
+        sparsity_loss = cp.sum(cp.abs(Sr)) if r == 1 else 0
+        distance_loss = cp.sum(cp.abs(Sr - Sn)) if r == 1 else 0
+
+        constraints = [Sr >= 0, cp.diag(Sr) == 0] if r == 1 else []
+        obj = ls_loss + lambd*distance_loss + beta*sparsity_loss + gamma*(comm_los1 + comm_los2)
+        prob = cp.Problem(cp.Minimize(obj), constraints)
+        
+        try:
+            prob.solve()
+        except cp.SolverError:
+            if verb:
+                print("WARNING: Could not find optimal S -- Solver Error")
+            try:
+                prob.solve(solver=cp.ECOS, verbose=False)
+                if verb:
+                    print("Solver error fixed")
+            except cp.SolverError as e:
+                if verb:
+                    print("A second solver error")
+                    print(e)
+                return None
+
+        if prob.status in ["optimal", "optimal_inaccurate"]:
+            Spows[r-1,:,:] = Sr.value
+        else:
+            if verb:
+                print(f"WARNING: problem status: {prob.status}")
+            return None
+
+    return
+
+
+# TODO: add option for stationarity, add early stopping
+def robust_gfid_powersS(X, Y, R, Sn, params, max_iters=20, th=1e-3, patience=4, h_true=None,
+                        S_true=None, verb=False):
+    """
+    """
+    lambd, gamma, beta, inc_gamma = params
+
+    N, M = X.shape
+    Spows_prev = np.zeros((R-1, N, N))
+    Spows_prev[0,:,:] = Sn
+    # S_prev = Sn
+    Spows = Spows_prev  # np.copy(Spows_prev)
+
+    err = []
+    count_es = 0
+    min_err = np.inf
+    norm_h = (h_true**2).sum() if h_true is not None else 0
+    norm_S = (N*(N-1) / 2) if S_true is not None else 0
+    for i in range(X, Y, Spows):
+        # Filter identification problem
+        h = filter_coefs_id(X, Y, Spows)
+
+        # Graph identification        
+        Spows = graph_powers_id(X, Y, Sn, h, Spows_prev, lambd, gamma, beta, inc_gamma)
+        Spows = Spows_prev if Spows is None else Spows
+
+        # if h_true is not None and S_true is not None:
+        #     # Early stopping is performed with variables error
+        #     err_h = ((h - h_true)**2).sum() / norm_h
+        #     err_S = ((Spows[0,:,:] - S_true)**2).sum() / norm_S
+        #     err.append(err_h + err_S)
+        # else:
+        #     # Early stopping is performed with objective funtion
+        #     ls_loss = ((Y - H@X)**2).sum()
+        #     s_loss = np.abs(S-Sn).sum()
+        #     commut_loss = ((S@H - H@S)**2).sum()
+        #     commut_cy_loss = ((Cy@H - H@Cy)**2).sum()
+        #     err.append(ls_loss + lambd*s_loss + gamma*commut_loss)
+
+        if inc_gamma:
+            gamma = inc_gamma*gamma
+        Spows_prev = Spows
+    
+    return h, Spows
+
+
 def filter_id(Y, X, S, gamma, delta, Cy, verb=VERB):
     """
     Performs the filter identification step of the robust filter identification algorithm.

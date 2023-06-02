@@ -8,6 +8,7 @@ from opt_aux import RobustPolyOpt
 from opt_efficient import efficient_rfi
 
 import numpy as np
+import torch
 
 from joblib import Parallel, delayed, cpu_count
 import json
@@ -45,7 +46,6 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
     warnings.filterwarnings('ignore')
 
     for i, exp in enumerate(exps):
-
         params = args[exp["cy"]].get(exp["func"], [])
 
         if exp["cy"] == "real":
@@ -71,13 +71,20 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
         if 'efficient' in exp['func']:
             H_est, S_est, _, _ = efficient_rfi(X, Y, Sn, params, **kwargs)
         elif exp['func'] == 'esth_SGD':
-            model = RobustPolyOpt(Sn, K, exp['iters_out'], exp['iters_S'], exp['lr'],
+            S0 = Sn
+            # S0 = torch.zeros(Sn.shape)
+            model = RobustPolyOpt(S0, K, exp['iters_out'], exp['iters_S'], exp['lr'],
                                   exp['eval_freq'])
-            h_est, S_est = model.test_model(Sn, X, Y, params, S, h, exp['verbose'],
+            h_est, S_est, _, _, _ = model.test_model(Sn, X, Y, params, S, h, exp['verbose'],
                                             exp['debug_S'])
         else:
             _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
-        h_est, h_bar_est = data.obtain_filter_coefs(S_est, H_est, K, return_h_bar=True)
+        
+        if exp['func'] == 'esth_SGD':
+            H_est = data.generate_graph_filter(S_est, K, h_coefs=h_est)
+            h_bar_est = np.zeros(h_bar_true.shape)
+        else:
+            h_est, h_bar_est = data.obtain_filter_coefs(S_est, H_est, K, return_h_bar=True)
 
         err_H_coefs[i] = np.linalg.norm(h - h_est)**2/np.linalg.norm(h)**2
         err_h_bar[i] = ((h_bar_est - h_bar_true)**2).sum()/norm_h_bar
@@ -88,19 +95,6 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
             err_S[i] = (S/np.sqrt(norm_A) - S_est/np.sqrt(norm_S_est)**2).sum()
         else:
             err_S[i] = ((S - S_est)**2).sum()/norm_A
-
-        # Different options to calculate S
-        # if S_for_coefs == "binarized":
-        #     # Binarization
-        #     thres = (np.max(S_est) + np.min(S_est))/2
-        #     S_est_coefs = np.where(S_est > thres, 1., 0.)
-        # elif S_for_coefs == "scaled":
-        #     # Scale so maximum value is 1
-        #     S_est_coefs = S_est / np.max(np.abs(S_est))
-        # elif S_for_coefs == "norm":
-        #     # Scale so both S and S_est have the same norm
-        #     S_est_coefs = (S_est / (S_est**2).sum()) * norm_A
-        #     #assert np.allclose((S_est_coefs**2).sum(), norm_A)
 
     return err_H, err_S, err_H_coefs, err_h_bar
 
@@ -127,18 +121,19 @@ def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False
             dest = None
 
         funcs = []
-        # for i in range(n_graphs):
-        #     X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
+        for i in range(n_graphs):
+            X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
 
-        #     funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free))
+            funcs.append(delayed(test)(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free))
         
-        # results = parallel(funcs)
+        results = parallel(funcs)
 
-        # for i in range(n_graphs):
-        #     err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = results[i]
+        for i in range(n_graphs):
+            err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = results[i]
 
-        X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
-        err_H[i,:], err_S[i,:], err_H_coefs[i,:], err_h_bar[i,:] = test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free)
+        # FOR DEBUG:
+        # X, Y, Cy, Cy_samp, H, S, Sn, h = data.gen_data(N, M, g_params, p_n, eps, K, neg_coefs=neg_coefs, exp_coefs=exp_coefs, coef=coef, sort_h=sort_h, norm_S=norm_S, norm_H=norm_H, pert_type=pert, creat=creat, dest=dest, sel_ratio=sel_ratio, sel_node_idx=sel_node_idx)
+        # err_H, err_S, err_H_coefs, err_h_bar = test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, sc_free=sc_free)
 
     return {
         'med_H': np.median(err_H, 0),

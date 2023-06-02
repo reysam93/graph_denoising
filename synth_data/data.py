@@ -64,12 +64,14 @@ def generate_graph(N, g_params, seed=None):
         raise NotImplementedError("Only: ER graph available")
     return to_numpy_array(G)
 
-def generate_graph_filter(S, K, neg_coefs=True, exp_coefs=False, coef=1, sort_h=False, norm_S=False, norm_H=False, return_h=False):
+def generate_graph_filter(S, K, neg_coefs=True, exp_coefs=False, coef=1, sort_h=False, norm_S=False, norm_H=False, return_h=False, h_coefs=None):
     """
     Generate a graph filter from the graph shift operator and random coefficients
     """
     # Generate graph filter
-    if neg_coefs:
+    if h_coefs is not None:
+        h = h_coefs
+    elif neg_coefs:
         h = 2 * np.random.rand(K) - 1
     else:
         h = np.random.rand(K)
