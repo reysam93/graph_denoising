@@ -10,16 +10,16 @@ VERB = False
 
 def filter_coefs_id(X, Y, Spows):
     y = Y.flatten(order='F')
-    R = Spows.shape[0] # NOTE: S_pows expected to be R-1xNxN tensor
+    R_minus1 = Spows.shape[0] # NOTE: S_pows expected to be R-1xNxN tensor
 
     # Create matrix Theta
-    Theta_T = np.zeros((R+1, X.size))
+    Theta_T = np.zeros((R_minus1+1, X.size))
     Theta_T[0,:] = X.flatten(order='F')
-    for r in range(R):
+    for r in range(R_minus1):
         Theta_T[r+1,:] = (Spows[r] @ X).flatten(order='F')
     
     Theta = Theta_T.T
-    return np.pinv(Theta) @ y
+    return np.linalg.pinv(Theta) @ y
 
 
 def graph_powers_id(X, Y, Sn, h, Spows, lambd, gamma, beta, inc_gamma, verb=False):
@@ -35,14 +35,16 @@ def graph_powers_id(X, Y, Sn, h, Spows, lambd, gamma, beta, inc_gamma, verb=Fals
                 continue
             Zr -= h[i] * Spows[i-1,:,:] @ X
 
-        Sr = cp.Variable((N,N), symmetric=True)
+        Sr = cp.Variable((N,N), PSD=True) if r % 2 == 0 else cp.Variable((N,N), symmetric=True)
+        # Sr = cp.Variable((N,N), symmetric=True)
+
         ls_loss = cp.sum_squares(Zr - h[r] * Sr @ X)
-        comm_los1 = cp.sum(Sr - Spows[r-2,:,:] @ Spows[0,:,:]) if r > 1 else 0
-        comm_los2 = cp.sum(Spows[r,:,:] - Sr @ Spows[0,:,:]) if r < (R - 1) else 0 
-        sparsity_loss = cp.sum(cp.abs(Sr)) if r == 1 else 0
+        comm_los1 = cp.sum_squares(Sr - Spows[r-2,:,:] @ Spows[0,:,:]) if r > 1 else 0
+        comm_los2 = cp.sum_squares(Spows[r,:,:] - Sr @ Spows[0,:,:]) if r < (R - 1) else 0 
+        sparsity_loss = cp.sum(Sr) if r == 1 else 0
         distance_loss = cp.sum(cp.abs(Sr - Sn)) if r == 1 else 0
 
-        constraints = [Sr >= 0, cp.diag(Sr) == 0] if r == 1 else []
+        constraints = [Sr >= 0, cp.diag(Sr) == 0] if r == 1 else [Sr >= 0]
         obj = ls_loss + lambd*distance_loss + beta*sparsity_loss + gamma*(comm_los1 + comm_los2)
         prob = cp.Problem(cp.Minimize(obj), constraints)
         
@@ -68,7 +70,7 @@ def graph_powers_id(X, Y, Sn, h, Spows, lambd, gamma, beta, inc_gamma, verb=Fals
                 print(f"WARNING: problem status: {prob.status}")
             return None
 
-    return
+    return Spows
 
 
 # TODO: add option for stationarity, add early stopping
@@ -89,7 +91,7 @@ def robust_gfid_powersS(X, Y, R, Sn, params, max_iters=20, th=1e-3, patience=4, 
     min_err = np.inf
     norm_h = (h_true**2).sum() if h_true is not None else 0
     norm_S = (N*(N-1) / 2) if S_true is not None else 0
-    for i in range(X, Y, Spows):
+    for i in range(max_iters):
         # Filter identification problem
         h = filter_coefs_id(X, Y, Spows)
 
