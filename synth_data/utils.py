@@ -77,10 +77,15 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
                                   exp['eval_freq'])
             h_est, S_est, _, _, _ = model.test_model(Sn, X, Y, params, S, h, exp['verbose'],
                                             exp['debug_S'])
+        elif exp['func'] == 'graph_powers_id':
+            # verb=exp['verbose']
+            h_est, Spows_est =  opt.robust_gfid_powersS(X, Y, K, Sn, params, verb=exp['verbose'],
+                                                        max_iters=exp['max_iters'])
+            S_est = Spows_est[0,:,:]
         else:
             _, H_est, S_est = getattr(opt, exp["func"])(X, Y, Sn, Cy_exp, params, **kwargs)
         
-        if exp['func'] == 'esth_SGD':
+        if exp['func'] == 'esth_SGD' or exp['func'] == 'graph_powers_id':
             H_est = data.generate_graph_filter(S_est, K, h_coefs=h_est)
             h_bar_est = np.zeros(h_bar_true.shape)
         else:
@@ -99,7 +104,7 @@ def test(X, Y, Sn, S, H, h, K, Cy, Cy_samp, exps, args, S_for_coefs="binarized",
     return err_H, err_S, err_H_coefs, err_h_bar
 
 
-def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False, coef=1, exp_coefs=True, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", sel_ratio=1, sel_node_idx=0, sc_free=False, n_procs=cpu_count()):
+def objective(p_n, M, K, eps, exps, args, n_graphs, N, g_params, neg_coefs=False, coef=1, exp_coefs=True, sort_h=False, norm_S=False, norm_H=False, pert_type="rewire", sel_ratio=1, sel_node_idx=0, sc_free=False, max_iters=20, n_procs=cpu_count()):
 
     err_H = np.zeros((n_graphs, len(exps)))
     err_S = np.zeros((n_graphs, len(exps)))
